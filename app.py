@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, g, redirect, render_template, request, session, url_for, flash
+from flask import Flask, flash, g, redirect, render_template, request, session, url_for
 
 APP_DIR = Path(__file__).parent
 DB_PATH = APP_DIR / "db.sqlite3"
@@ -192,6 +192,10 @@ def family_detail(family_id):
         return redirect(url_for("start"))
     db = get_db()
     family = db.execute("SELECT * FROM families WHERE id=?", (family_id,)).fetchone()
+    if family is None:
+        flash("العائلة المختارة غير موجودة.", "error")
+        return redirect(url_for("families"))
+
     mains = db.execute(
         "SELECT * FROM dishes WHERE family_id=? AND category='main' AND active=1", (family_id,)
     ).fetchall()
@@ -222,22 +226,51 @@ def family_detail(family_id):
 def place_order():
     if not session.get("customer_name"):
         return redirect(url_for("start"))
-    db = get_db()
-    family_id = int(request.form["family_id"])
-    dish_id = int(request.form["dish_id"])
-    meal = request.form["meal"]
+
+    try:
+        family_id = int(request.form.get("family_id"))
+        dish_id = int(request.form.get("dish_id"))
+    except (TypeError, ValueError):
+        flash("بيانات الطلب غير صالحة، أعد المحاولة من فضلك.", "error")
+        return redirect(url_for("families"))
+
+    meal = request.form.get("meal")
     addon_id = request.form.get("addon_id") or None
+    db = get_db()
 
     family = db.execute("SELECT * FROM families WHERE id=?", (family_id,)).fetchone()
+    if family is None:
+        flash("العائلة المختارة غير موجودة.", "error")
+        return redirect(url_for("families"))
+
+    if meal not in {"lunch", "dinner"}:
+        flash("اختر وجبة صحيحة قبل الإرسال.", "error")
+        return redirect(url_for("family_detail", family_id=family_id))
+
     meals = meal_status(family)
     if not meals[meal]["open"]:
         flash("عذرًا، انتهى موعد القطع لهذه الوجبة اليوم.", "error")
         return redirect(url_for("family_detail", family_id=family_id))
 
-    dish = db.execute("SELECT * FROM dishes WHERE id=?", (dish_id,)).fetchone()
+    dish = db.execute("SELECT * FROM dishes WHERE id=? AND family_id=?", (dish_id, family_id)).fetchone()
+    if dish is None:
+        flash("الطبق المختار لا ينتمي إلى هذه العائلة.", "error")
+        return redirect(url_for("family_detail", family_id=family_id))
+
     total = dish["price"]
-    if addon_id:
-        addon = db.execute("SELECT * FROM addons WHERE id=?", (addon_id,)).fetchone()
+    if addon_id is not None:
+        try:
+            addon_id = int(addon_id)
+        except (TypeError, ValueError):
+            flash("الإضافة المختارة غير صالحة.", "error")
+            return redirect(url_for("family_detail", family_id=family_id))
+
+        addon = db.execute(
+            "SELECT * FROM addons WHERE id=? AND dish_id=?", (addon_id, dish_id)
+        ).fetchone()
+        if addon is None:
+            flash("الإضافة المختارة غير موجودة لهذا الطبق.", "error")
+            return redirect(url_for("family_detail", family_id=family_id))
         total += addon["price"]
 
     db.execute(
@@ -287,6 +320,12 @@ def family_login():
 
 @app.route("/family/login/<int:family_id>")
 def family_login_as(family_id):
+    db = get_db()
+    family = db.execute("SELECT * FROM families WHERE id=?", (family_id,)).fetchone()
+    if family is None:
+        session.pop("family_id", None)
+        flash("العائلة المختارة غير موجودة.", "error")
+        return redirect(url_for("family_login"))
     session["family_id"] = family_id
     return redirect(url_for("family_dashboard"))
 
@@ -298,6 +337,11 @@ def family_dashboard():
         return redirect(url_for("family_login"))
     db = get_db()
     family = db.execute("SELECT * FROM families WHERE id=?", (fid,)).fetchone()
+    if family is None:
+        session.pop("family_id", None)
+        flash("تم تسجيل خروجك لأن هذه العائلة غير موجودة الآن.", "error")
+        return redirect(url_for("family_login"))
+
     rows = db.execute(
         """
         SELECT o.*, d.name AS dish_name, a.name AS addon_name
@@ -336,6 +380,12 @@ def family_order_action(order_id, action):
     if not fid:
         return redirect(url_for("family_login"))
     db = get_db()
+    family = db.execute("SELECT * FROM families WHERE id=?", (fid,)).fetchone()
+    if family is None:
+        session.pop("family_id", None)
+        flash("تم تسجيل خروجك لأن هذه العائلة غير موجودة الآن.", "error")
+        return redirect(url_for("family_login"))
+
     new_status = {"accept": "accepted", "reject": "rejected", "ready": "ready"}.get(action)
     if new_status:
         db.execute(
@@ -352,6 +402,11 @@ def family_menu():
         return redirect(url_for("family_login"))
     db = get_db()
     family = db.execute("SELECT * FROM families WHERE id=?", (fid,)).fetchone()
+    if family is None:
+        session.pop("family_id", None)
+        flash("تم تسجيل خروجك لأن هذه العائلة غير موجودة الآن.", "error")
+        return redirect(url_for("family_login"))
+
     mains = db.execute("SELECT * FROM dishes WHERE family_id=? AND category='main'", (fid,)).fetchall()
     sides = db.execute("SELECT * FROM dishes WHERE family_id=? AND category='side'", (fid,)).fetchall()
     return render_template("family_menu.html", family=family, mains=mains, sides=sides)
@@ -363,6 +418,12 @@ def toggle_dish(dish_id):
     if not fid:
         return redirect(url_for("family_login"))
     db = get_db()
+    family = db.execute("SELECT * FROM families WHERE id=?", (fid,)).fetchone()
+    if family is None:
+        session.pop("family_id", None)
+        flash("تم تسجيل خروجك لأن هذه العائلة غير موجودة الآن.", "error")
+        return redirect(url_for("family_login"))
+
     db.execute(
         "UPDATE dishes SET active = 1 - active WHERE id=? AND family_id=?", (dish_id, fid)
     )
