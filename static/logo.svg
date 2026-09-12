@@ -1,15 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#3E82FF"/>
-      <stop offset="100%" stop-color="#1E52C4"/>
+    <linearGradient id="goldFill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E7C066"/>
+      <stop offset="100%" stop-color="#B4842A"/>
     </linearGradient>
+    <path id="leaf" d="M0,0 C-15,-9 -16,-32 0,-45 C16,-32 15,-9 0,0 Z"/>
   </defs>
-  <rect x="0" y="0" width="512" height="512" rx="118" fill="url(#bg)"/>
-  <path d="M186 168 Q176 138 196 112" fill="none" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round" opacity="0.85"/>
-  <path d="M234 168 Q224 130 248 100" fill="none" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round" opacity="0.85"/>
-  <path d="M282 168 Q272 138 292 112" fill="none" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round" opacity="0.85"/>
-  <circle cx="256" cy="304" r="118" fill="#FFFFFF"/>
-  <circle cx="256" cy="304" r="118" fill="none" stroke="#1E52C4" stroke-width="10" opacity="0.12"/>
-  <path d="M204 306 L240 342 L316 262" fill="none" stroke="#16A34A" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <circle cx="256" cy="256" r="240" fill="#FBF6EC"/>
+  <circle cx="256" cy="256" r="234" fill="none" stroke="url(#goldFill)" stroke-width="6"/>
+  <circle cx="256" cy="256" r="212" fill="none" stroke="#B4842A" stroke-width="2" opacity=".55"/>
+
+  <g fill="#A97620">
+    <use href="#leaf" transform="translate(133,352) rotate(-158)"/>
+    <use href="#leaf" transform="translate(112,313) rotate(-178)"/>
+    <use href="#leaf" transform="translate(108,269) rotate(162)"/>
+    <use href="#leaf" transform="translate(379,352) rotate(158)"/>
+    <use href="#leaf" transform="translate(400,313) rotate(178)"/>
+    <use href="#leaf" transform="translate(404,269) rotate(-162)"/>
+  </g>
+
+  <g>
+    <ellipse cx="256" cy="309" rx="88" ry="11" fill="#A97620"/>
+    <path d="M172 300 A 84 76 0 0 1 340 300 Z" fill="url(#goldFill)"/>
+    <rect x="250" y="205" width="12" height="26" rx="4" fill="#A97620"/>
+    <circle cx="256" cy="198" r="12" fill="url(#goldFill)"/>
+    <path d="M198 292 A 60 52 0 0 1 314 292" fill="none" stroke="#FBF6EC" stroke-width="4" opacity=".5"/>
+  </g>
 </svg>
