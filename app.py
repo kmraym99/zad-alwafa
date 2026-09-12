@@ -10,6 +10,8 @@ DB_PATH = APP_DIR / "db.sqlite3"
 
 app = Flask(__name__)
 app.secret_key = "zad-alwafa-dev-secret"
+OWNER_PASSWORD = os.environ.get("OWNER_PASSWORD", "zad-admin-2026")
+COMMISSION_RATE = 0.10
 
 
 # ---------------------------------------------------------------- database
@@ -44,7 +46,8 @@ def init_db():
             dinner_cutoff INTEGER NOT NULL,
             lunch_window TEXT NOT NULL,
             dinner_window TEXT NOT NULL,
-            verified INTEGER NOT NULL DEFAULT 1
+            verified INTEGER NOT NULL DEFAULT 1,
+            active INTEGER NOT NULL DEFAULT 1
         );
         CREATE TABLE IF NOT EXISTS dishes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -181,7 +184,7 @@ def families():
     if not session.get("customer_name"):
         return redirect(url_for("start"))
     db = get_db()
-    rows = db.execute("SELECT * FROM families ORDER BY rating DESC").fetchall()
+    rows = db.execute("SELECT * FROM families WHERE active=1 ORDER BY rating DESC").fetchall()
     data = [{"row": r, "meals": meal_status(r)} for r in rows]
     return render_template("families.html", families=data)
 
@@ -435,6 +438,75 @@ def toggle_dish(dish_id):
 def family_logout():
     session.pop("family_id", None)
     return redirect(url_for("home"))
+
+
+# ---------------------------------------------------------------- owner routes
+
+@app.route("/owner/login", methods=["GET", "POST"])
+def owner_login():
+    if request.method == "POST":
+        if request.form.get("password") == OWNER_PASSWORD:
+            session["is_owner"] = True
+            return redirect(url_for("owner_dashboard"))
+        flash("كلمة المرور غير صحيحة.", "error")
+        return redirect(url_for("owner_login"))
+    return render_template("owner_login.html")
+
+
+@app.route("/owner/logout")
+def owner_logout():
+    session.pop("is_owner", None)
+    return redirect(url_for("home"))
+
+
+@app.route("/owner/dashboard")
+def owner_dashboard():
+    if not session.get("is_owner"):
+        return redirect(url_for("owner_login"))
+    db = get_db()
+    families = db.execute("SELECT * FROM families ORDER BY name").fetchall()
+    orders = db.execute(
+        """
+        SELECT o.*, f.name AS family_name, d.name AS dish_name
+        FROM orders o
+        JOIN families f ON f.id = o.family_id
+        JOIN dishes d ON d.id = o.dish_id
+        ORDER BY o.id DESC
+        """
+    ).fetchall()
+
+    counted = [o for o in orders if o["status"] != "rejected"]
+    gross = sum(o["total"] for o in counted)
+    commission = round(gross * COMMISSION_RATE, 2)
+    payout = round(gross - commission, 2)
+
+    per_family = {}
+    for o in counted:
+        stats = per_family.setdefault(o["family_name"], {"count": 0, "gross": 0})
+        stats["count"] += 1
+        stats["gross"] += o["total"]
+
+    return render_template(
+        "owner_dashboard.html",
+        families=families,
+        orders=orders[:30],
+        gross=gross,
+        commission=commission,
+        payout=payout,
+        per_family=per_family,
+        order_count=len(counted),
+        commission_pct=int(COMMISSION_RATE * 100),
+    )
+
+
+@app.route("/owner/family/<int:family_id>/toggle", methods=["POST"])
+def owner_toggle_family(family_id):
+    if not session.get("is_owner"):
+        return redirect(url_for("owner_login"))
+    db = get_db()
+    db.execute("UPDATE families SET active = 1 - active WHERE id=?", (family_id,))
+    db.commit()
+    return redirect(url_for("owner_dashboard"))
 
 
 init_db()

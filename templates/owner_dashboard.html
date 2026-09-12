@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}لوحة المالك — زاد الوفا{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+  <h2 class="section-title" style="margin:0;">لوحة المالك</h2>
+  <a href="{{ url_for('owner_logout') }}" class="muted small">تسجيل خروج</a>
+</div>
+
+<div class="grid3">
+  <div class="feature-card">
+    <p class="muted small">إجمالي الطلبات المحتسبة</p>
+    <p style="font-size:1.7rem; font-weight:800; margin:4px 0 0;">{{ order_count }}</p>
+  </div>
+  <div class="feature-card">
+    <p class="muted small">إجمالي المبيعات (ر.س)</p>
+    <p style="font-size:1.7rem; font-weight:800; margin:4px 0 0;">{{ gross }}</p>
+  </div>
+  <div class="feature-card">
+    <p class="muted small">عمولتك ({{ commission_pct }}٪)</p>
+    <p style="font-size:1.7rem; font-weight:800; margin:4px 0 0; color:var(--accent);">{{ commission }}</p>
+  </div>
+</div>
+<p class="muted small" style="margin-top:10px;">صافي مستحقات الأسر بعد خصم العمولة: <b>{{ payout }} ر.س</b></p>
+
+<h3 class="section-title">الأسر على المنصة</h3>
+<div class="menu-manage-list">
+  {% for f in families %}
+  {% set stats = per_family.get(f.name, {"count":0,"gross":0}) %}
+  <form method="post" action="{{ url_for('owner_toggle_family', family_id=f.id) }}" class="menu-manage-row">
+    <span>
+      <b>{{ f.name }}</b>
+      <span class="muted small">— {{ f.area }} · {{ stats.count }} طلب · {{ stats.gross }} ر.س</span>
+    </span>
+    <button type="submit" class="pill {{ 'verified' if f.active else 'penalty' }} as-button">{{ 'نشطة' if f.active else 'موقوفة' }}</button>
+  </form>
+  {% endfor %}
+</div>
+
+<h3 class="section-title">آخر الطلبات</h3>
+<div class="order-list">
+  {% for o in orders %}
+  {% set label = status_labels[o.status] %}
+  <div class="order-row">
+    <div>
+      <b>{{ o.dish_name }}</b>
+      <div class="muted small">{{ o.family_name }} · {{ o.customer_name }} · {{ 'غداء' if o.meal == 'lunch' else 'عشاء' }}</div>
+    </div>
+    <div class="order-right">
+      <span class="price">{{ o.total }} ر.س</span>
+      <span class="pill {{ label[1] }}">{{ label[0] }}</span>
+    </div>
+  </div>
+  {% else %}<p class="muted">ما فيه طلبات بعد.</p>{% endfor %}
+</div>
+{% endblock %}

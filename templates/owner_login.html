@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}دخول المالك — زاد الوفا{% endblock %}
+{% block content %}
+<section class="panel narrow">
+  <h2>لوحة المالك</h2>
+  <p class="muted">وصول خاص — كلمة مرور واحدة لإدارة المنصة.</p>
+  <form method="post" class="form">
+    <input type="password" name="password" placeholder="كلمة المرور" required autofocus>
+    <button type="submit" class="btn btn-accent">دخول</button>
+  </form>
+</section>
+{% endblock %}
