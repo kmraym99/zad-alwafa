@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+db.sqlite3
+server.log
+gunicorn.log
+gunicorn.pid
+tunnel.log
+.DS_Store

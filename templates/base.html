@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}زاد الوفا{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Markazi+Text:wght@600;700&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('home') }}">زاد الوفا</a>
+    <nav class="topnav">
+      {% if family_id %}
+        <a href="{{ url_for('family_dashboard') }}">لوحة الأسرة</a>
+        <a href="{{ url_for('family_menu') }}">المنيو</a>
+        <a href="{{ url_for('family_logout') }}" class="muted">تسجيل خروج</a>
+      {% elif customer_name %}
+        <span class="muted">أهلًا، {{ customer_name }}</span>
+        <a href="{{ url_for('families') }}">الأسر</a>
+        <a href="{{ url_for('orders') }}">طلباتي</a>
+        <a href="{{ url_for('logout') }}" class="muted">تسجيل خروج</a>
+      {% else %}
+        <a href="{{ url_for('start') }}">أنا عميل</a>
+        <a href="{{ url_for('family_login') }}">أنا صاحبة نشاط</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="wrap">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes">
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">نموذج أولي داخلي — زاد الوفا · بريدة</footer>
+</body>
+</html>

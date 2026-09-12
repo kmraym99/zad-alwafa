@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}الأسر — زاد الوفا{% endblock %}
+{% block content %}
+<h2 class="section-title">الأسر المتاحة في بريدة</h2>
+<div class="grid3">
+  {% for item in families %}
+  {% set f = item.row %}
+  {% set m = item.meals %}
+  <a class="family-card" href="{{ url_for('family_detail', family_id=f.id) }}">
+    <div class="family-card-head">
+      <h3>{{ f.name }}</h3>
+      {% if f.verified %}<span class="pill verified">أسرة موثوقة</span>{% endif %}
+    </div>
+    <p class="muted">{{ f.area }}</p>
+    <p class="rating">★ {{ f.rating }} <span class="muted">({{ f.reviews }} تقييم)</span></p>
+    <div class="meal-row">
+      <span class="pill {{ 'accent' if m.lunch.open else 'future' }}">غداء {{ 'مفتوح حتى ' ~ m.lunch.cutoff|string ~ ':00' if m.lunch.open else 'مغلق اليوم' }}</span>
+      <span class="pill {{ 'accent' if m.dinner.open else 'future' }}">عشاء {{ 'مفتوح حتى ' ~ m.dinner.cutoff|string ~ ':00' if m.dinner.open else 'مغلق اليوم' }}</span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

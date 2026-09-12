@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ family.name }} — زاد الوفا{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ url_for('families') }}">← رجوع للأسر</a>
+
+<section class="panel">
+  <div class="family-card-head">
+    <h2>{{ family.name }}</h2>
+    {% if family.verified %}<span class="pill verified">أسرة موثوقة</span>{% endif %}
+  </div>
+  <p class="muted">{{ family.area }} · ★ {{ family.rating }} ({{ family.reviews }} تقييم)</p>
+  <p class="muted small">الكتالوج الكامل: {{ catalog_count.get('main', 0) }} رئيسية · {{ catalog_count.get('side', 0) }} مقبلات — المتاح اليوم: {{ mains|length }} رئيسية · {{ sides|length }} مقبلات</p>
+
+  <div class="cutoff-note">
+    <span class="pill {{ 'accent' if meals.lunch.open else 'future' }}">غداء ({{ family.lunch_window }}) — {{ 'مفتوح حتى الساعة ' ~ meals.lunch.cutoff|string ~ ':00' if meals.lunch.open else 'انتهى موعد القطع اليوم' }}</span>
+    <span class="pill {{ 'accent' if meals.dinner.open else 'future' }}">عشاء ({{ family.dinner_window }}) — {{ 'مفتوح حتى الساعة ' ~ meals.dinner.cutoff|string ~ ':00' if meals.dinner.open else 'انتهى موعد القطع اليوم' }}</span>
+  </div>
+</section>
+
+<h3 class="section-title">الأصناف الرئيسية</h3>
+<div class="dish-grid">
+  {% for d in mains %}
+  <form method="post" action="{{ url_for('place_order') }}" class="dish-card">
+    <input type="hidden" name="family_id" value="{{ family.id }}">
+    <input type="hidden" name="dish_id" value="{{ d.id }}">
+    <div class="dish-head">
+      <b>{{ d.name }}</b>
+      <span class="price">{{ d.price }} ر.س</span>
+    </div>
+    {% set adds = addons_by_dish.get(d.id, []) %}
+    {% if adds %}
+    <label class="field-label">إضافة (اختياري)</label>
+    <select name="addon_id">
+      <option value="">بدون إضافة</option>
+      {% for a in adds %}
+      <option value="{{ a.id }}">{{ a.name }} (+{{ a.price }} ر.س)</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+    <div class="meal-choice">
+      <label class="{{ '' if meals.lunch.open else 'disabled' }}">
+        <input type="radio" name="meal" value="lunch" {{ 'checked' if meals.lunch.open else 'disabled' }} required> غداء
+      </label>
+      <label class="{{ '' if meals.dinner.open else 'disabled' }}">
+        <input type="radio" name="meal" value="dinner" {{ 'disabled' if not meals.dinner.open else '' }} {{ 'checked' if not meals.lunch.open and meals.dinner.open else '' }}> عشاء
+      </label>
+    </div>
+    <button type="submit" class="btn btn-accent full" {{ 'disabled' if not (meals.lunch.open or meals.dinner.open) else '' }}>اطلب هذا الصنف</button>
+  </form>
+  {% else %}
+  <p class="muted">ما فيه أصناف رئيسية متاحة اليوم من هذي الأسرة.</p>
+  {% endfor %}
+</div>
+
+<h3 class="section-title">المقبلات <span class="muted small">(تُطلب لحالها)</span></h3>
+<div class="dish-grid">
+  {% for d in sides %}
+  <form method="post" action="{{ url_for('place_order') }}" class="dish-card">
+    <input type="hidden" name="family_id" value="{{ family.id }}">
+    <input type="hidden" name="dish_id" value="{{ d.id }}">
+    <div class="dish-head">
+      <b>{{ d.name }}</b>
+      <span class="price">{{ d.price }} ر.س</span>
+    </div>
+    <div class="meal-choice">
+      <label class="{{ '' if meals.lunch.open else 'disabled' }}">
+        <input type="radio" name="meal" value="lunch" {{ 'checked' if meals.lunch.open else 'disabled' }} required> غداء
+      </label>
+      <label class="{{ '' if meals.dinner.open else 'disabled' }}">
+        <input type="radio" name="meal" value="dinner" {{ 'disabled' if not meals.dinner.open else '' }} {{ 'checked' if not meals.lunch.open and meals.dinner.open else '' }}> عشاء
+      </label>
+    </div>
+    <button type="submit" class="btn btn-accent full" {{ 'disabled' if not (meals.lunch.open or meals.dinner.open) else '' }}>اطلب هذا الصنف</button>
+  </form>
+  {% else %}
+  <p class="muted">ما فيه مقبلات متاحة اليوم من هذي الأسرة.</p>
+  {% endfor %}
+</div>
+{% endblock %}

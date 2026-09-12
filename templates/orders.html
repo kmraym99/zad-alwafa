@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}طلباتي — زاد الوفا{% endblock %}
+{% block content %}
+<h2 class="section-title">طلباتي</h2>
+{% if not orders %}
+<p class="muted">ما عندك طلبات بعد. <a href="{{ url_for('families') }}">تصفح الأسر</a></p>
+{% endif %}
+<div class="order-list">
+  {% for o in orders %}
+  {% set label = status_labels[o.status] %}
+  <div class="order-row">
+    <div>
+      <b>{{ o.dish_name }}</b>{% if o.addon_name %} <span class="muted">+ {{ o.addon_name }}</span>{% endif %}
+      <div class="muted small">{{ o.family_name }} · {{ 'غداء' if o.meal == 'lunch' else 'عشاء' }} · <bdi>{{ o.created_at }}</bdi></div>
+    </div>
+    <div class="order-right">
+      <span class="price">{{ o.total }} ر.س</span>
+      <span class="pill {{ label[1] }}">{{ label[0] }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

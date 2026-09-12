@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}منيو {{ family.name }} — زاد الوفا{% endblock %}
+{% block content %}
+<h2 class="section-title">منيو {{ family.name }}</h2>
+<p class="muted">الكتالوج ثابت (لا يقل عن ٤ رئيسية و٤ مقبلات) — فعّلي أو أوقفي أي صنف حسب المتاح فعليًا اليوم.</p>
+
+<h3 class="section-title">الأصناف الرئيسية</h3>
+<div class="menu-manage-list">
+  {% for d in mains %}
+  <form method="post" action="{{ url_for('toggle_dish', dish_id=d.id) }}" class="menu-manage-row">
+    <span>{{ d.name }} <span class="muted small">({{ d.price }} ر.س)</span></span>
+    <button type="submit" class="pill {{ 'verified' if d.active else 'future' }} as-button">{{ 'متاح اليوم' if d.active else 'غير متاح' }}</button>
+  </form>
+  {% endfor %}
+</div>
+
+<h3 class="section-title">المقبلات</h3>
+<div class="menu-manage-list">
+  {% for d in sides %}
+  <form method="post" action="{{ url_for('toggle_dish', dish_id=d.id) }}" class="menu-manage-row">
+    <span>{{ d.name }} <span class="muted small">({{ d.price }} ر.س)</span></span>
+    <button type="submit" class="pill {{ 'verified' if d.active else 'future' }} as-button">{{ 'متاح اليوم' if d.active else 'غير متاح' }}</button>
+  </form>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}لوحة {{ family.name }} — زاد الوفا{% endblock %}
+{% block content %}
+<h2 class="section-title">لوحة {{ family.name }}</h2>
+
+{% if shopping_list %}
+<section class="panel">
+  <h3>قائمة المشتريات المجمّعة <span class="muted small">(من الطلبات الحالية)</span></h3>
+  <ul class="shopping-list">
+    {% for name, count in shopping_list.items() %}
+    <li><b>{{ count }}×</b> {{ name }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<h3 class="section-title">طلبات بانتظار القبول ({{ pending|length }})</h3>
+<div class="order-list">
+  {% for o in pending %}
+  <div class="order-row">
+    <div>
+      <b>{{ o.dish_name }}</b>{% if o.addon_name %} <span class="muted">+ {{ o.addon_name }}</span>{% endif %}
+      <div class="muted small">{{ o.customer_name }} · {{ 'غداء' if o.meal == 'lunch' else 'عشاء' }} · {{ o.total }} ر.س</div>
+    </div>
+    <div class="order-actions">
+      <form method="post" action="{{ url_for('family_order_action', order_id=o.id, action='accept') }}">
+        <button class="btn btn-verified small" type="submit">قبول</button>
+      </form>
+      <form method="post" action="{{ url_for('family_order_action', order_id=o.id, action='reject') }}">
+        <button class="btn btn-penalty-outline small" type="submit">رفض (ظرف طارئ)</button>
+      </form>
+    </div>
+  </div>
+  {% else %}<p class="muted">ما فيه طلبات جديدة حاليًا.</p>{% endfor %}
+</div>
+
+<h3 class="section-title">قيد التحضير ({{ active|length }})</h3>
+<div class="order-list">
+  {% for o in active %}
+  <div class="order-row">
+    <div>
+      <b>{{ o.dish_name }}</b>{% if o.addon_name %} <span class="muted">+ {{ o.addon_name }}</span>{% endif %}
+      <div class="muted small">{{ o.customer_name }} · {{ 'غداء' if o.meal == 'lunch' else 'عشاء' }}</div>
+    </div>
+    <form method="post" action="{{ url_for('family_order_action', order_id=o.id, action='ready') }}">
+      <button class="btn btn-accent small" type="submit">تعليم جاهزة</button>
+    </form>
+  </div>
+  {% else %}<p class="muted">لا شي قيد التحضير.</p>{% endfor %}
+</div>
+
+<h3 class="section-title">جاهزة للتسليم ({{ ready|length }})</h3>
+<div class="order-list">
+  {% for o in ready %}
+  <div class="order-row">
+    <div><b>{{ o.dish_name }}</b><div class="muted small">{{ o.customer_name }}</div></div>
+    <span class="pill verified">جاهزة</span>
+  </div>
+  {% else %}<p class="muted">لا شي جاهز حاليًا.</p>{% endfor %}
+</div>
+{% endblock %}
