@@ -129,7 +129,7 @@ a{ color:inherit; text-decoration:none; }
 .cutoff-note{ display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
 
 .form{ display:flex; flex-direction:column; gap:12px; margin-top:16px; }
-.form input[type=text],.form input[type=password]{
+.form input[type=text],.form input[type=password],.form input[type=tel]{
   padding:13px 16px; border-radius:12px; border:1.5px solid var(--line); font-family:inherit; font-size:1rem;
   transition:border-color .15s;
 }

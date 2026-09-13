@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}حساب جديد — زاد الوفا{% endblock %}
+{% block content %}
+<section class="panel narrow">
+  <h2>إنشاء حساب</h2>
+  <p class="muted">بيانات بسيطة، وتقدرين تطلبين فورًا.</p>
+  <form method="post" class="form">
+    <input type="text" name="name" placeholder="الاسم" required autofocus>
+    <input type="tel" name="phone" placeholder="رقم الجوال (05xxxxxxxx)" required>
+    <input type="password" name="password" placeholder="كلمة مرور (٦ أحرف على الأقل)" required minlength="6">
+    <button type="submit" class="btn btn-accent">إنشاء الحساب</button>
+  </form>
+  <p class="muted small" style="margin-top:14px;">عندك حساب؟ <a href="{{ url_for('login') }}" style="color:var(--accent); font-weight:700;">سجّلي دخولك</a></p>
+</section>
+{% endblock %}

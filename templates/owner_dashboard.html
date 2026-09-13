@@ -26,13 +26,21 @@
 <div class="menu-manage-list">
   {% for f in families %}
   {% set stats = per_family.get(f.name, {"count":0,"gross":0}) %}
-  <form method="post" action="{{ url_for('owner_toggle_family', family_id=f.id) }}" class="menu-manage-row">
-    <span>
-      <b>{{ f.name }}</b>
-      <span class="muted small">— {{ f.area }} · {{ stats.count }} طلب · {{ stats.gross }} ر.س</span>
-    </span>
-    <button type="submit" class="pill {{ 'verified' if f.active else 'penalty' }} as-button">{{ 'نشطة' if f.active else 'موقوفة' }}</button>
-  </form>
+  <div class="panel" style="padding:16px 18px; margin-bottom:0;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <span>
+        <b>{{ f.name }}</b>
+        <span class="muted small">— {{ f.area }} · جوال {{ f.phone }} · {{ stats.count }} طلب · {{ stats.gross }} ر.س</span>
+      </span>
+      <form method="post" action="{{ url_for('owner_toggle_family', family_id=f.id) }}">
+        <button type="submit" class="pill {{ 'verified' if f.active else 'penalty' }} as-button">{{ 'نشطة' if f.active else 'موقوفة' }}</button>
+      </form>
+    </div>
+    <form method="post" action="{{ url_for('owner_set_family_password', family_id=f.id) }}" style="display:flex; gap:8px; margin-top:10px;">
+      <input type="password" name="new_password" placeholder="كلمة مرور جديدة لهذه الأسرة" minlength="6" style="flex:1; padding:8px 12px; border-radius:10px; border:1.5px solid var(--line); font-family:inherit;">
+      <button type="submit" class="btn btn-ghost small">تعيين</button>
+    </form>
+  </div>
   {% endfor %}
 </div>
 

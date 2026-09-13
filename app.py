@@ -1,15 +1,17 @@
 import os
+import secrets
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 
 from flask import Flask, flash, g, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
 
 APP_DIR = Path(__file__).parent
 DB_PATH = APP_DIR / "db.sqlite3"
 
 app = Flask(__name__)
-app.secret_key = "zad-alwafa-dev-secret"
+app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 OWNER_PASSWORD = os.environ.get("OWNER_PASSWORD", "zad-admin-2026")
 COMMISSION_RATE = 0.10
 
@@ -36,10 +38,19 @@ def init_db():
     db = sqlite3.connect(DB_PATH)
     db.executescript(
         """
+        CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            phone TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS families (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             area TEXT NOT NULL,
+            phone TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
             rating REAL NOT NULL,
             reviews INTEGER NOT NULL,
             lunch_cutoff INTEGER NOT NULL,
@@ -65,7 +76,7 @@ def init_db():
         );
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_name TEXT NOT NULL,
+            customer_id INTEGER NOT NULL REFERENCES customers(id),
             family_id INTEGER NOT NULL REFERENCES families(id),
             dish_id INTEGER NOT NULL REFERENCES dishes(id),
             addon_id INTEGER,
@@ -83,18 +94,22 @@ def init_db():
     db.close()
 
 
+DEMO_FAMILY_PASSWORD = "welcome1"
+
+
 def seed(db):
     families = [
-        ("بيت أم سعود", "حي الفيصلية، بريدة", 4.8, 132, 8, 14, "12:00 – 1:00 ظهرًا", "7:00 – 8:00 مساءً"),
-        ("مطبخ الجواهر", "حي النهضة، بريدة", 4.6, 74, 9, 15, "12:30 – 1:30 ظهرًا", "7:30 – 8:30 مساءً"),
-        ("سفرة الحي", "حي الصفراء، بريدة", 4.9, 201, 7, 13, "12:00 – 1:00 ظهرًا", "6:30 – 7:30 مساءً"),
+        ("بيت أم سعود", "حي الفيصلية، بريدة", "0500000001", 4.8, 132, 8, 14, "12:00 – 1:00 ظهرًا", "7:00 – 8:00 مساءً"),
+        ("مطبخ الجواهر", "حي النهضة، بريدة", "0500000002", 4.6, 74, 9, 15, "12:30 – 1:30 ظهرًا", "7:30 – 8:30 مساءً"),
+        ("سفرة الحي", "حي الصفراء، بريدة", "0500000003", 4.9, 201, 7, 13, "12:00 – 1:00 ظهرًا", "6:30 – 7:30 مساءً"),
     ]
     fids = []
-    for f in families:
+    pw_hash = generate_password_hash(DEMO_FAMILY_PASSWORD, method="pbkdf2:sha256")
+    for name, area, phone, rating, reviews, lc, dc, lw, dw in families:
         cur = db.execute(
-            "INSERT INTO families (name, area, rating, reviews, lunch_cutoff, dinner_cutoff, lunch_window, dinner_window) "
-            "VALUES (?,?,?,?,?,?,?,?)",
-            f,
+            "INSERT INTO families (name, area, phone, password_hash, rating, reviews, lunch_cutoff, dinner_cutoff, lunch_window, dinner_window) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (name, area, phone, pw_hash, rating, reviews, lc, dc, lw, dw),
         )
         fids.append(cur.lastrowid)
 
@@ -143,6 +158,10 @@ def meal_status(family):
     }
 
 
+def clean_phone(raw):
+    return "".join(ch for ch in (raw or "") if ch.isdigit())
+
+
 STATUS_LABELS = {
     "pending": ("بانتظار قبول الأسرة", "future"),
     "accepted": ("مقبول — قيد التحضير", "accent"),
@@ -153,8 +172,13 @@ STATUS_LABELS = {
 
 @app.context_processor
 def inject_globals():
+    customer_name = None
+    cid = session.get("customer_id")
+    if cid:
+        row = get_db().execute("SELECT name FROM customers WHERE id=?", (cid,)).fetchone()
+        customer_name = row["name"] if row else None
     return {
-        "customer_name": session.get("customer_name"),
+        "customer_name": customer_name,
         "family_id": session.get("family_id"),
         "status_labels": STATUS_LABELS,
     }
@@ -167,22 +191,52 @@ def home():
     return render_template("home.html")
 
 
-@app.route("/start", methods=["GET", "POST"])
-def start():
+@app.route("/register", methods=["GET", "POST"])
+def register():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
-        if not name:
-            flash("اكتب اسمك أول عشان نكمل.", "error")
-            return redirect(url_for("start"))
-        session["customer_name"] = name
+        phone = clean_phone(request.form.get("phone"))
+        password = request.form.get("password", "")
+
+        if not name or len(phone) < 9 or len(password) < 6:
+            flash("تأكدي من الاسم، ورقم جوال صحيح، وكلمة مرور ٦ أحرف على الأقل.", "error")
+            return redirect(url_for("register"))
+
+        db = get_db()
+        exists = db.execute("SELECT id FROM customers WHERE phone=?", (phone,)).fetchone()
+        if exists:
+            flash("رقم الجوال مسجّل مسبقًا — سجّلي دخولك بدلًا من ذلك.", "error")
+            return redirect(url_for("login"))
+
+        cur = db.execute(
+            "INSERT INTO customers (phone, name, password_hash, created_at) VALUES (?,?,?,?)",
+            (phone, name, generate_password_hash(password, method="pbkdf2:sha256"), datetime.now().isoformat(timespec="minutes")),
+        )
+        db.commit()
+        session["customer_id"] = cur.lastrowid
         return redirect(url_for("families"))
-    return render_template("start.html")
+    return render_template("register.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        phone = clean_phone(request.form.get("phone"))
+        password = request.form.get("password", "")
+        db = get_db()
+        row = db.execute("SELECT * FROM customers WHERE phone=?", (phone,)).fetchone()
+        if row is None or not check_password_hash(row["password_hash"], password):
+            flash("رقم الجوال أو كلمة المرور غير صحيحة.", "error")
+            return redirect(url_for("login"))
+        session["customer_id"] = row["id"]
+        return redirect(url_for("families"))
+    return render_template("login.html")
 
 
 @app.route("/families")
 def families():
-    if not session.get("customer_name"):
-        return redirect(url_for("start"))
+    if not session.get("customer_id"):
+        return redirect(url_for("login"))
     db = get_db()
     rows = db.execute("SELECT * FROM families WHERE active=1 ORDER BY rating DESC").fetchall()
     data = [{"row": r, "meals": meal_status(r)} for r in rows]
@@ -191,8 +245,8 @@ def families():
 
 @app.route("/families/<int:family_id>")
 def family_detail(family_id):
-    if not session.get("customer_name"):
-        return redirect(url_for("start"))
+    if not session.get("customer_id"):
+        return redirect(url_for("login"))
     db = get_db()
     family = db.execute("SELECT * FROM families WHERE id=?", (family_id,)).fetchone()
     if family is None:
@@ -227,8 +281,9 @@ def family_detail(family_id):
 
 @app.route("/order", methods=["POST"])
 def place_order():
-    if not session.get("customer_name"):
-        return redirect(url_for("start"))
+    cid = session.get("customer_id")
+    if not cid:
+        return redirect(url_for("login"))
 
     try:
         family_id = int(request.form.get("family_id"))
@@ -277,9 +332,9 @@ def place_order():
         total += addon["price"]
 
     db.execute(
-        "INSERT INTO orders (customer_name, family_id, dish_id, addon_id, meal, total, status, created_at) "
+        "INSERT INTO orders (customer_id, family_id, dish_id, addon_id, meal, total, status, created_at) "
         "VALUES (?,?,?,?,?,?, 'pending', ?)",
-        (session["customer_name"], family_id, dish_id, addon_id, meal, total, datetime.now().strftime("%d/%m %H:%M")),
+        (cid, family_id, dish_id, addon_id, meal, total, datetime.now().strftime("%d/%m %H:%M")),
     )
     db.commit()
     flash("تم إرسال طلبك وخصم قيمته إلكترونيًا — بانتظار قبول الأسرة.", "success")
@@ -288,8 +343,9 @@ def place_order():
 
 @app.route("/orders")
 def orders():
-    if not session.get("customer_name"):
-        return redirect(url_for("start"))
+    cid = session.get("customer_id")
+    if not cid:
+        return redirect(url_for("login"))
     db = get_db()
     rows = db.execute(
         """
@@ -298,39 +354,35 @@ def orders():
         JOIN families f ON f.id = o.family_id
         JOIN dishes d ON d.id = o.dish_id
         LEFT JOIN addons a ON a.id = o.addon_id
-        WHERE o.customer_name = ?
+        WHERE o.customer_id = ?
         ORDER BY o.id DESC
         """,
-        (session["customer_name"],),
+        (cid,),
     ).fetchall()
     return render_template("orders.html", orders=rows)
 
 
 @app.route("/logout")
 def logout():
-    session.pop("customer_name", None)
+    session.pop("customer_id", None)
     return redirect(url_for("home"))
 
 
 # ---------------------------------------------------------------- family routes
 
-@app.route("/family/login")
+@app.route("/family/login", methods=["GET", "POST"])
 def family_login():
-    db = get_db()
-    rows = db.execute("SELECT * FROM families ORDER BY name").fetchall()
-    return render_template("family_login.html", families=rows)
-
-
-@app.route("/family/login/<int:family_id>")
-def family_login_as(family_id):
-    db = get_db()
-    family = db.execute("SELECT * FROM families WHERE id=?", (family_id,)).fetchone()
-    if family is None:
-        session.pop("family_id", None)
-        flash("العائلة المختارة غير موجودة.", "error")
-        return redirect(url_for("family_login"))
-    session["family_id"] = family_id
-    return redirect(url_for("family_dashboard"))
+    if request.method == "POST":
+        phone = clean_phone(request.form.get("phone"))
+        password = request.form.get("password", "")
+        db = get_db()
+        row = db.execute("SELECT * FROM families WHERE phone=?", (phone,)).fetchone()
+        if row is None or not check_password_hash(row["password_hash"], password):
+            flash("رقم الجوال أو كلمة المرور غير صحيحة.", "error")
+            return redirect(url_for("family_login"))
+        session["family_id"] = row["id"]
+        return redirect(url_for("family_dashboard"))
+    return render_template("family_login.html")
 
 
 @app.route("/family/dashboard")
@@ -347,8 +399,9 @@ def family_dashboard():
 
     rows = db.execute(
         """
-        SELECT o.*, d.name AS dish_name, a.name AS addon_name
+        SELECT o.*, c.name AS customer_name, d.name AS dish_name, a.name AS addon_name
         FROM orders o
+        JOIN customers c ON c.id = o.customer_id
         JOIN dishes d ON d.id = o.dish_id
         LEFT JOIN addons a ON a.id = o.addon_id
         WHERE o.family_id = ?
@@ -467,9 +520,10 @@ def owner_dashboard():
     families = db.execute("SELECT * FROM families ORDER BY name").fetchall()
     orders = db.execute(
         """
-        SELECT o.*, f.name AS family_name, d.name AS dish_name
+        SELECT o.*, f.name AS family_name, c.name AS customer_name, d.name AS dish_name
         FROM orders o
         JOIN families f ON f.id = o.family_id
+        JOIN customers c ON c.id = o.customer_id
         JOIN dishes d ON d.id = o.dish_id
         ORDER BY o.id DESC
         """
@@ -506,6 +560,24 @@ def owner_toggle_family(family_id):
     db = get_db()
     db.execute("UPDATE families SET active = 1 - active WHERE id=?", (family_id,))
     db.commit()
+    return redirect(url_for("owner_dashboard"))
+
+
+@app.route("/owner/family/<int:family_id>/password", methods=["POST"])
+def owner_set_family_password(family_id):
+    if not session.get("is_owner"):
+        return redirect(url_for("owner_login"))
+    new_password = request.form.get("new_password", "")
+    if len(new_password) < 6:
+        flash("كلمة المرور الجديدة قصيرة — ٦ أحرف على الأقل.", "error")
+        return redirect(url_for("owner_dashboard"))
+    db = get_db()
+    db.execute(
+        "UPDATE families SET password_hash=? WHERE id=?",
+        (generate_password_hash(new_password, method="pbkdf2:sha256"), family_id),
+    )
+    db.commit()
+    flash("تم تحديث كلمة مرور الأسرة.", "success")
     return redirect(url_for("owner_dashboard"))
 
 

@@ -26,8 +26,9 @@
         <a href="{{ url_for('orders') }}">طلباتي</a>
         <a href="{{ url_for('logout') }}" class="muted">تسجيل خروج</a>
       {% else %}
-        <a href="{{ url_for('start') }}">أنا عميل</a>
-        <a href="{{ url_for('family_login') }}">أنا صاحبة نشاط</a>
+        <a href="{{ url_for('login') }}">دخول</a>
+        <a href="{{ url_for('register') }}">حساب جديد</a>
+        <a href="{{ url_for('family_login') }}" class="muted">أنا صاحبة نشاط</a>
       {% endif %}
     </nav>
   </header>

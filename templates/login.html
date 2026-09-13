@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}دخول الأسرة — زاد الوفا{% endblock %}
+{% block title %}تسجيل الدخول — زاد الوفا{% endblock %}
 {% block content %}
 <section class="panel narrow">
-  <h2>دخول الأسرة</h2>
-  <p class="muted">أدخلي رقم الجوال وكلمة المرور المسجّلة لأسرتك.</p>
+  <h2>تسجيل الدخول</h2>
+  <p class="muted">أدخلي رقم جوالك وكلمة المرور.</p>
   <form method="post" class="form">
     <input type="tel" name="phone" placeholder="05xxxxxxxx" required autofocus>
     <input type="password" name="password" placeholder="كلمة المرور" required>
     <button type="submit" class="btn btn-accent">دخول</button>
   </form>
-  <p class="muted small" style="margin-top:14px;">نسيتِ كلمة المرور؟ تواصلي مع إدارة المنصة لإعادة تعيينها.</p>
+  <p class="muted small" style="margin-top:14px;">ما عندك حساب؟ <a href="{{ url_for('register') }}" style="color:var(--accent); font-weight:700;">سجّلي الآن</a></p>
 </section>
 {% endblock %}
